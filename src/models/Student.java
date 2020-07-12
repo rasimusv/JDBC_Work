@@ -2,15 +2,7 @@ package models;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.StringJoiner;
 
-/**
- * 10.07.2020
- * 01. Database
- *
- * @author Sidikov Marsel (First Software Engineering Platform)
- * @version v1.0
- */
 public class Student {
     private Long id;
     private String firstName;
@@ -19,12 +11,13 @@ public class Student {
     private int groupNumber;
     private List<Mentor> mentors;
 
-    public Student(Long id, String firstName, String lastName, int age, int groupNumber) {
+    public Student(Long id, String firstName, String lastName, int age, int groupNumber, List<Mentor> mentors) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
         this.age = age;
         this.groupNumber = groupNumber;
+        this.mentors = mentors;
     }
 
     public Long getId() {
@@ -67,31 +60,41 @@ public class Student {
         this.groupNumber = groupNumber;
     }
 
+    public List<Mentor> getMentors() {
+        return mentors;
+    }
+
+    public void setMentors(List<Mentor> mentors) {
+        this.mentors = mentors;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Student student = (Student) o;
-        return age == student.age &&
-                groupNumber == student.groupNumber &&
-                Objects.equals(id, student.id) &&
-                Objects.equals(firstName, student.firstName) &&
-                Objects.equals(lastName, student.lastName);
+        return getAge() == student.getAge() &&
+                getGroupNumber() == student.getGroupNumber() &&
+                Objects.equals(getId(), student.getId()) &&
+                Objects.equals(getFirstName(), student.getFirstName()) &&
+                Objects.equals(getLastName(), student.getLastName()) &&
+                Objects.equals(getMentors(), student.getMentors());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, firstName, lastName, age, groupNumber);
+        return Objects.hash(getId(), getFirstName(), getLastName(), getAge(), getGroupNumber(), getMentors());
     }
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", Student.class.getSimpleName() + "[", "]")
-                .add("id=" + id)
-                .add("firstName='" + firstName + "'")
-                .add("lastName='" + lastName + "'")
-                .add("age=" + age)
-                .add("groupNumber=" + groupNumber)
-                .toString();
+        return "\n\nStudent {" + "\n" +
+                "id = " + id + "\n" +
+                "firstName = " + firstName + "\n" +
+                "lastName = " + lastName +  "\n" +
+                "age = " + age + "\n" +
+                "groupNumber = " + groupNumber + "\n" +
+                "mentors = " + mentors +
+                "}";
     }
 }

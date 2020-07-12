@@ -1,24 +1,20 @@
 package repositories;
 
-import models.Student;
+import models.*;
+import java.sql.*;
+import java.util.*;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.List;
-
-/**
- * 10.07.2020
- * 01. Database
- *
- * @author Sidikov Marsel (First Software Engineering Platform)
- * @version v1.0
- */
 public class StudentsRepositoryJdbcImpl implements StudentsRepository {
 
     //language=SQL
     private static final String SQL_SELECT_BY_ID = "select * from student where id = ";
+    private static final String SQL_SELECT_BY_AGE = "select * from student where age = ";
+    private static final String SQL_SELECT_MENTORS_BY_STUDENT_ID = "select * from mentor where student_id = ";
+    private static final String SQL_SELECT_ALL_STUDENTS = "select  * from student";
+    private static final String SQL_INSERT_STUDENT =
+            "insert into student (first_name, last_name, age, group_number) values ('%s','%s',%d,%d)";
+    private static final String SQL_UPDATE_STUDENT =
+            "update student set first_name = '%s', last_name = '%s', age = %d, group_number = %d where id = %d";
 
     private Connection connection;
 
@@ -28,35 +24,27 @@ public class StudentsRepositoryJdbcImpl implements StudentsRepository {
 
     @Override
     public List<Student> findAllByAge(int age) {
-        return null;
-    }
-
-    // Необходимо вытащить список всех студентов, при этом у каждого студента должен быть проставлен список менторов
-    // у менторов в свою очередь ничего проставлять (кроме имени, фамилии, id не надо)
-    // student1(id, firstName, ..., mentors = [{id, firstName, lastName, null}, {}, ), student2, student3
-    // все сделать одним запросом
-    @Override
-    public List<Student> findAll() {
-        return null;
-    }
-
-    @Override
-    public Student findById(Long id) {
+        List<Student> students = new ArrayList<>();
         Statement statement = null;
         ResultSet result = null;
 
         try {
             statement = connection.createStatement();
-            result = statement.executeQuery(SQL_SELECT_BY_ID + id);
-            if (result.next()) {
-                return new Student(
-                        result.getLong("id"),
+            result = statement.executeQuery(SQL_SELECT_BY_AGE + age);
+
+            while (result.next()) {
+                Long id = result.getLong("id");
+
+                students.add(new Student(
+                        id,
                         result.getString("first_name"),
                         result.getString("last_name"),
                         result.getInt("age"),
-                        result.getInt("group_number")
-                );
-            } else return null;
+                        result.getInt("group_number"),
+                        findMentorsByStudentByID(id)));
+            }
+            return students;
+
         } catch (SQLException e) {
             throw new IllegalArgumentException(e);
         } finally {
@@ -77,25 +65,192 @@ public class StudentsRepositoryJdbcImpl implements StudentsRepository {
         }
     }
 
-    // просто вызывается insert для сущности
-    // student = Student(null, 'Марсель', 'Сидиков', 26, 915)
-    // studentsRepository.save(student);
-    // // student = Student(3, 'Марсель', 'Сидиков', 26, 915)
     @Override
-    public void save(Student entity) {
+    public List<Student> findAll() {
+        List<Student> students = new ArrayList<>();
+        Statement statement = null;
+        ResultSet result = null;
 
+        try {
+            statement = connection.createStatement();
+            result = statement.executeQuery(SQL_SELECT_ALL_STUDENTS);
+
+            while (result.next()) {
+                Long id = result.getLong("id");
+
+                students.add(new Student(
+                        id,
+                        result.getString("first_name"),
+                        result.getString("last_name"),
+                        result.getInt("age"),
+                        result.getInt("group_number"),
+                        findMentorsByStudentByID(id)));
+            }
+            return students;
+
+        } catch (SQLException e) {
+            throw new IllegalArgumentException(e);
+        } finally {
+            if (result != null) {
+                try {
+                    result.close();
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
+            if (statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
+        }
     }
 
-    // для сущности, у которой задан id выполнить обновление всех полей
+    @Override
+    public Student findById(Long id) {
+        Statement statement = null;
+        ResultSet result = null;
 
-    // student = Student(3, 'Марсель', 'Сидиков', 26, 915)
-    // student.setFirstName("Игорь")
-    // student.setLastName(null);
-    // studentsRepository.update(student);
-    // (3, 'Игорь', null, 26, 915)
+        try {
+            statement = connection.createStatement();
+            result = statement.executeQuery(SQL_SELECT_BY_ID + id);
+
+            if (result.next()) {
+                return new Student(
+                        id,
+                        result.getString("first_name"),
+                        result.getString("last_name"),
+                        result.getInt("age"),
+                        result.getInt("group_number"),
+                        findMentorsByStudentByID(id));
+            } else return null;
+
+        } catch (SQLException e) {
+            throw new IllegalArgumentException(e);
+        } finally {
+            if (result != null) {
+                try {
+                    result.close();
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
+            if (statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
+        }
+    }
+
+    @Override
+    public void save(Student entity) {
+        Statement statement = null;
+        ResultSet result = null;
+
+        try {
+            statement = connection.createStatement();
+
+            String insertStudentStatement = String.format(SQL_INSERT_STUDENT,
+                    entity.getFirstName(),
+                    entity.getLastName(),
+                    entity.getAge(),
+                    entity.getGroupNumber());
+            statement.executeUpdate(insertStudentStatement, Statement.RETURN_GENERATED_KEYS);
+
+            result = statement.getGeneratedKeys();
+            result.next();
+
+            entity.setId(result.getLong("id"));
+
+        } catch (SQLException e) {
+            throw new IllegalArgumentException(e);
+        } finally {
+            if (result != null) {
+                try {
+                    result.close();
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
+            if (statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
+        }
+    }
 
     @Override
     public void update(Student entity) {
+        Statement statement = null;
 
+        try {
+            statement = connection.createStatement();
+
+            String updateStudentStatement = String.format(SQL_UPDATE_STUDENT,
+                    entity.getFirstName(),
+                    entity.getLastName(),
+                    entity.getAge(),
+                    entity.getGroupNumber(),
+                    entity.getId());
+
+            statement.executeUpdate(updateStudentStatement);
+        } catch (SQLException e) {
+            throw new IllegalArgumentException(e);
+        } finally {
+            if (statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
+        }
+    }
+
+    private List<Mentor> findMentorsByStudentByID (long id) {
+        List<Mentor> mentors = new ArrayList<>();
+        Statement statement = null;
+        ResultSet result = null;
+
+        try {
+            statement = connection.createStatement();
+            result = statement.executeQuery(SQL_SELECT_MENTORS_BY_STUDENT_ID + id);
+
+            while (result.next()) {
+                mentors.add(new Mentor(
+                        result.getLong("id"),
+                        result.getString("first_name"),
+                        result.getString("last_name"),
+                        null));
+            }
+
+            return mentors;
+
+        } catch (SQLException e) {
+            throw new IllegalArgumentException(e);
+        } finally {
+            if (result != null) {
+                try {
+                    result.close();
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
+            if (statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
+        }
     }
 }
