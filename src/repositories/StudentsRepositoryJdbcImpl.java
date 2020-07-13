@@ -8,9 +8,8 @@ public class StudentsRepositoryJdbcImpl implements StudentsRepository {
 
     //language=SQL
     private static final String SQL_SELECT_BY_ID = "select * from student where id = ";
-    private static final String SQL_SELECT_BY_AGE = "select * from student where age = ";
-    private static final String SQL_SELECT_MENTORS_BY_STUDENT_ID = "select * from mentor where student_id = ";
-    private static final String SQL_SELECT_ALL_STUDENTS = "select  * from student";
+    private static final String SQL_SELECT_ALL_STUDENTS =
+            "select  * from student right join (select id as mentor_id, first_name as mentor_first_name, last_name as mentor_last_name, student_id from mentor) as m on student.id = m.student_id";
     private static final String SQL_INSERT_STUDENT =
             "insert into student (first_name, last_name, age, group_number) values ('%s','%s',%d,%d)";
     private static final String SQL_UPDATE_STUDENT =
@@ -24,50 +23,27 @@ public class StudentsRepositoryJdbcImpl implements StudentsRepository {
 
     @Override
     public List<Student> findAllByAge(int age) {
-        List<Student> students = new ArrayList<>();
-        Statement statement = null;
-        ResultSet result = null;
-
-        try {
-            statement = connection.createStatement();
-            result = statement.executeQuery(SQL_SELECT_BY_AGE + age);
-
-            while (result.next()) {
-                Long id = result.getLong("id");
-
-                students.add(new Student(
-                        id,
-                        result.getString("first_name"),
-                        result.getString("last_name"),
-                        result.getInt("age"),
-                        result.getInt("group_number"),
-                        findMentorsByStudentByID(id)));
-            }
-            return students;
-
-        } catch (SQLException e) {
-            throw new IllegalArgumentException(e);
-        } finally {
-            if (result != null) {
-                try {
-                    result.close();
-                } catch (SQLException e) {
-                    // ignore
-                }
-            }
-            if (statement != null) {
-                try {
-                    statement.close();
-                } catch (SQLException e) {
-                    // ignore
-                }
-            }
-        }
+        return null;
     }
+
+
+    /* Произшел небольшой костыль - для того, чтобы понять, есть ли студент в списке студентов я использую
+       метод contains, который работает через equals. Из-за того, что списки менторов у сравниваемых объектов разные
+       (в данном случае это так и задумано), получается что студенты разные. Я убрал из метода equals проверку списка
+       менторов, чтобы всё работало. По сути это очень неправильно и можно реализовать конкретно для этой задачи свой
+       алгоритм сравнения, но тогда получилась бы сложность по памяти O(m*n), что тоже нехорошо. В данном случае я
+       решил изменить equals, так как база данных сконфигурирована так, что в ней не можгут существовать две строки с
+       одинаковым id. То есть вероятность того, что в будущем, при использовании equals, будет получен неверный
+       резульат, довольно небольшая. Полагаю, что эта проблема возникла из-за условия задачи, которое требует, чтобы
+       был только один запрос. Поэтому, полагаю, эта проблема несущественна, так как это учебная задача. При работе
+       над реальной задачей, естественно следует не нарушать принципы SOLID
+    */
+
 
     @Override
     public List<Student> findAll() {
         List<Student> students = new ArrayList<>();
+        List<Mentor> mentors= new ArrayList<>();
         Statement statement = null;
         ResultSet result = null;
 
@@ -76,15 +52,34 @@ public class StudentsRepositoryJdbcImpl implements StudentsRepository {
             result = statement.executeQuery(SQL_SELECT_ALL_STUDENTS);
 
             while (result.next()) {
-                Long id = result.getLong("id");
 
-                students.add(new Student(
-                        id,
+                List<Mentor> studMentors = new ArrayList<>();
+
+                Student student = new Student(
+                        result.getLong("id"),
                         result.getString("first_name"),
                         result.getString("last_name"),
                         result.getInt("age"),
                         result.getInt("group_number"),
-                        findMentorsByStudentByID(id)));
+                        studMentors);
+
+                Mentor mentor = new Mentor(
+                        result.getLong("mentor_id"),
+                        result.getString("mentor_first_name"),
+                        result.getString("mentor_last_name"),
+                        student);
+
+                mentors.add(mentor);
+
+                if (!students.contains(student)) {
+                    students.add(student);
+                } else {
+                    student = students.get(students.indexOf(student));
+                }
+
+                studMentors = student.getMentors();
+                studMentors.add(mentor);
+                student.setMentors(studMentors);
             }
             return students;
 
@@ -124,7 +119,7 @@ public class StudentsRepositoryJdbcImpl implements StudentsRepository {
                         result.getString("last_name"),
                         result.getInt("age"),
                         result.getInt("group_number"),
-                        findMentorsByStudentByID(id));
+                        null);
             } else return null;
 
         } catch (SQLException e) {
@@ -205,45 +200,6 @@ public class StudentsRepositoryJdbcImpl implements StudentsRepository {
         } catch (SQLException e) {
             throw new IllegalArgumentException(e);
         } finally {
-            if (statement != null) {
-                try {
-                    statement.close();
-                } catch (SQLException e) {
-                    // ignore
-                }
-            }
-        }
-    }
-
-    private List<Mentor> findMentorsByStudentByID (long id) {
-        List<Mentor> mentors = new ArrayList<>();
-        Statement statement = null;
-        ResultSet result = null;
-
-        try {
-            statement = connection.createStatement();
-            result = statement.executeQuery(SQL_SELECT_MENTORS_BY_STUDENT_ID + id);
-
-            while (result.next()) {
-                mentors.add(new Mentor(
-                        result.getLong("id"),
-                        result.getString("first_name"),
-                        result.getString("last_name"),
-                        null));
-            }
-
-            return mentors;
-
-        } catch (SQLException e) {
-            throw new IllegalArgumentException(e);
-        } finally {
-            if (result != null) {
-                try {
-                    result.close();
-                } catch (SQLException e) {
-                    // ignore
-                }
-            }
             if (statement != null) {
                 try {
                     statement.close();

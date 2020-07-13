@@ -69,6 +69,6 @@ public class Mentor {
                 id + " " +
                 firstName +
                 lastName +
-                student + '}';
+                student.getId() + '}';
     }
 }

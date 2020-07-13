@@ -1,7 +1,6 @@
 package models;
 
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class Student {
     private Long id;
@@ -77,8 +76,7 @@ public class Student {
                 getGroupNumber() == student.getGroupNumber() &&
                 Objects.equals(getId(), student.getId()) &&
                 Objects.equals(getFirstName(), student.getFirstName()) &&
-                Objects.equals(getLastName(), student.getLastName()) &&
-                Objects.equals(getMentors(), student.getMentors());
+                Objects.equals(getLastName(), student.getLastName());
     }
 
     @Override
